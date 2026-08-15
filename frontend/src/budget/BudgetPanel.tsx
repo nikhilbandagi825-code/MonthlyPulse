@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { Category, Currency, RecurringRule, catMeta, getCurrencySymbol, money } from "./shared";
+import { Category, Currency, RecurringRule, catMeta, getCurrencySymbol, money, BackupData } from "./shared";
 import CategoryEditor from "./CategoryEditor";
+import DataManager from "./DataManager";
 
 export default function BudgetPanel({
   budget,
@@ -13,12 +14,15 @@ export default function BudgetPanel({
   categories,
   currency,
   currencies,
+  backup,
   onSave,
   onDeleteRecurring,
   onChangeCurrency,
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
+  onImport,
+  onToast,
 }: {
   budget: number;
   limits: Record<string, number>;
@@ -27,12 +31,15 @@ export default function BudgetPanel({
   categories: Category[];
   currency: Currency;
   currencies: Currency[];
+  backup: BackupData;
   onSave: (value: number, limits: Record<string, number>, rollover: boolean) => void;
   onDeleteRecurring: (id: string) => void;
   onChangeCurrency: (currency: Currency) => void;
   onAddCategory: (category: Category) => void;
   onUpdateCategory: (oldName: string, category: Category) => void;
   onDeleteCategory: (name: string) => void;
+  onImport: (data: BackupData) => void;
+  onToast: (msg: string) => void;
 }) {
   const [value, setValue] = useState(String(budget));
   const [next, setNext] = useState(limits);
@@ -256,6 +263,8 @@ export default function BudgetPanel({
           <Text style={styles.recurringNote}>Stopping a recurring expense keeps past entries.</Text>
         </>
       )}
+
+      <DataManager backup={backup} onImport={onImport} onToast={onToast} />
 
       <Pressable
         testID="save-budget-button"

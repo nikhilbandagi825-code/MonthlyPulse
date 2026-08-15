@@ -23,6 +23,7 @@ import {
   MonthBar,
   RecurringRule,
   STORAGE_KEY,
+  BackupData,
   catMeta,
   money,
   setCurrencySymbol,
@@ -31,6 +32,7 @@ import ExpenseModal from "@/src/budget/ExpenseModal";
 import BudgetPanel from "@/src/budget/BudgetPanel";
 import HistoryPanel from "@/src/budget/HistoryPanel";
 import InsightsCard from "@/src/budget/InsightsCard";
+import DonutChart from "@/src/budget/DonutChart";
 
 export default function Index() {
   const [budget, setBudget] = useState(3000);
@@ -226,6 +228,16 @@ export default function Index() {
     setCurrency(nextCurrency);
     showToast(`Currency set to ${nextCurrency.code}`);
   };
+  const importData = (data: BackupData) => {
+    setBudget(data.budget ?? 3000);
+    setLimits(data.limits ?? {});
+    setExpenses(Array.isArray(data.expenses) ? data.expenses : []);
+    setRollover(data.rollover === true);
+    setRecurring(Array.isArray(data.recurring) ? data.recurring : []);
+    setCategories(Array.isArray(data.categories) && data.categories.length ? data.categories : DEFAULT_CATEGORIES);
+    setCurrency(data.currency && data.currency.symbol ? data.currency : CURRENCIES[0]);
+    showToast("Backup restored");
+  };
   const addCategory = (cat: Category) => {
     setCategories((cur) => [...cur, cat]);
     showToast("Category added");
@@ -254,6 +266,8 @@ export default function Index() {
 
   const overBudget = remaining < 0;
   const pct = effectiveBudget > 0 ? Math.min((spent / effectiveBudget) * 100, 100) : 0;
+
+  const isMonthEnd = daysLeft <= 5 && monthExpenses.length > 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -313,6 +327,31 @@ export default function Index() {
               </View>
             </View>
 
+            {isMonthEnd && (
+              <View
+                testID="month-recap-card"
+                style={[styles.recapCard, overBudget ? styles.recapCardOver : styles.recapCardGood]}
+              >
+                <View style={[styles.recapIcon, overBudget ? styles.recapIconOver : styles.recapIconGood]}>
+                  <Ionicons
+                    name={overBudget ? "refresh-outline" : "leaf-outline"}
+                    size={20}
+                    color={overBudget ? "#B5482F" : "#2D6A4F"}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recapTitle}>
+                    {overBudget ? "Month-end check-in" : "You’re finishing strong 🌱"}
+                  </Text>
+                  <Text testID="month-recap-text" style={styles.recapText}>
+                    {overBudget
+                      ? `You went ${money(Math.abs(remaining))} over this month. Next month is a fresh start.`
+                      : `With ${daysLeft} day${daysLeft === 1 ? "" : "s"} left, you have ${money(remaining)} to spare — nicely under budget.`}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {alerts.length > 0 && (
               <View testID="category-alerts" style={styles.alertCard}>
                 <View style={styles.alertHeader}>
@@ -342,30 +381,17 @@ export default function Index() {
             <View style={styles.chartCard}>
               {byCategory.some((c) => c.amount > 0) ? (
                 <>
-                  <View style={styles.bars}>
-                    {byCategory
+                  <DonutChart
+                    segments={byCategory
                       .filter((c) => c.amount > 0)
-                      .map((item) => {
-                        const max = Math.max(...byCategory.map((x) => x.amount), 1);
-                        return (
-                          <View key={item.category} style={styles.barItem}>
-                            <View style={styles.barTrack}>
-                              <View
-                                style={[
-                                  styles.barFill,
-                                  { height: `${Math.max((item.amount / max) * 100, 8)}%`, backgroundColor: item.color },
-                                ]}
-                              />
-                            </View>
-                            <Text style={styles.barLabel}>{item.category.slice(0, 5)}</Text>
-                          </View>
-                        );
-                      })}
-                  </View>
+                      .map((c) => ({ label: c.category, value: c.amount, color: c.color }))}
+                    centerValue={money(spent)}
+                    centerLabel="spent"
+                  />
                   <View style={styles.legend}>
                     {byCategory
                       .filter((c) => c.amount > 0)
-                      .slice(0, 4)
+                      .slice(0, 6)
                       .map((item) => (
                         <View key={item.category} style={styles.legendItem}>
                           <View style={[styles.legendDot, { backgroundColor: item.color }]} />
@@ -475,11 +501,14 @@ export default function Index() {
             categories={categories}
             currency={currency}
             currencies={CURRENCIES}
+            backup={{ budget, limits, expenses, rollover, recurring, categories, currency }}
             onDeleteRecurring={deleteRecurring}
             onChangeCurrency={changeCurrency}
             onAddCategory={addCategory}
             onUpdateCategory={updateCategory}
             onDeleteCategory={deleteCategory}
+            onImport={importData}
+            onToast={showToast}
             onSave={(value, nextLimits, nextRollover) => {
               saveBudget(value, nextLimits, nextRollover);
               setActiveTab("home");
@@ -538,11 +567,14 @@ export default function Index() {
                 categories={categories}
                 currency={currency}
                 currencies={CURRENCIES}
+                backup={{ budget, limits, expenses, rollover, recurring, categories, currency }}
                 onDeleteRecurring={deleteRecurring}
                 onChangeCurrency={changeCurrency}
                 onAddCategory={addCategory}
                 onUpdateCategory={updateCategory}
                 onDeleteCategory={deleteCategory}
+                onImport={importData}
+                onToast={showToast}
                 onSave={(value, nextLimits, nextRollover) => {
                   saveBudget(value, nextLimits, nextRollover);
                   setShowBudget(false);
@@ -617,6 +649,14 @@ const styles = StyleSheet.create({
   safeCard: { marginTop: 16, padding: 18, backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 13 },
   safeIcon: { backgroundColor: "#FFF1DF", width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   safeAmount: { color: "#1B2A22", fontSize: 24, fontWeight: "700", marginTop: 3, marginBottom: 2 },
+  recapCard: { marginTop: 16, flexDirection: "row", alignItems: "flex-start", gap: 13, borderRadius: 20, borderWidth: 1, padding: 16 },
+  recapCardGood: { backgroundColor: "#EAF4EE", borderColor: "#C5E6D2" },
+  recapCardOver: { backgroundColor: "#FCE8E4", borderColor: "#F4CFC6" },
+  recapIcon: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  recapIconGood: { backgroundColor: "#D8F0E1" },
+  recapIconOver: { backgroundColor: "#F9D9D2" },
+  recapTitle: { color: "#1B2A22", fontSize: 15, fontWeight: "700", marginBottom: 4 },
+  recapText: { color: "#526E5D", fontSize: 13, lineHeight: 19 },
   alertCard: { marginTop: 16, backgroundColor: "#FFF6EC", borderColor: "#F4D9BC", borderWidth: 1, borderRadius: 18, padding: 16 },
   alertHeader: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
   alertTitle: { color: "#8A5219", fontSize: 14, fontWeight: "700" },
@@ -630,7 +670,7 @@ const styles = StyleSheet.create({
   barTrack: { height: 112, width: 22, backgroundColor: "#F0F5F1", borderRadius: 11, justifyContent: "flex-end", overflow: "hidden" },
   barFill: { width: "100%", borderRadius: 11 },
   barLabel: { color: "#6E8577", fontSize: 10, marginTop: 8 },
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 18, paddingTop: 15, borderTopWidth: 1, borderTopColor: "#EDF3EE" },
+  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 18, paddingTop: 15, borderTopWidth: 1, borderTopColor: "#EDF3EE", justifyContent: "center" },
   legendItem: { flexDirection: "row", alignItems: "center" },
   legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
   legendText: { color: "#526E5D", fontSize: 12 },

@@ -62,6 +62,35 @@ export default function InsightsCard({
         ? `You’re pacing well — about ${money(paceDiff)} under plan for this point in the month.`
         : `You’re about ${money(Math.abs(paceDiff))} ahead of plan — a lighter week could help.`;
 
+  // Weekend vs weekday spending pattern (this month).
+  const monthEx = expenses.filter((e) => isSameMonth(parseISO(e.date), now));
+  let weekendLine: string | null = null;
+  if (monthEx.length >= 4) {
+    let weTotal = 0;
+    let wdTotal = 0;
+    const weDays = new Set<string>();
+    const wdDays = new Set<string>();
+    monthEx.forEach((e) => {
+      const d = parseISO(e.date);
+      const day = d.getDay();
+      const key = e.date.slice(0, 10);
+      if (day === 0 || day === 6) {
+        weTotal += e.amount;
+        weDays.add(key);
+      } else {
+        wdTotal += e.amount;
+        wdDays.add(key);
+      }
+    });
+    const wePer = weDays.size ? weTotal / weDays.size : 0;
+    const wdPer = wdDays.size ? wdTotal / wdDays.size : 0;
+    if (wePer > 0 && wdPer > 0 && wePer > wdPer * 1.25) {
+      weekendLine = `You tend to spend more on weekends — about ${money(wePer)}/day vs ${money(wdPer)}/day midweek.`;
+    } else if (wdPer > 0 && wePer > 0 && wdPer > wePer * 1.25) {
+      weekendLine = `Your weekdays run heavier — about ${money(wdPer)}/day vs ${money(wePer)}/day on weekends.`;
+    }
+  }
+
   return (
     <View testID="insights-card" style={styles.card}>
       <View style={styles.header}>
@@ -91,6 +120,12 @@ export default function InsightsCard({
             style={styles.rowIcon}
           />
           <Text testID="insight-pace" style={styles.line}>{paceLine}</Text>
+        </View>
+      )}
+      {weekendLine && (
+        <View style={styles.row}>
+          <Ionicons name="cafe-outline" size={15} color="#52B788" style={styles.rowIcon} />
+          <Text testID="insight-weekend" style={styles.line}>{weekendLine}</Text>
         </View>
       )}
     </View>

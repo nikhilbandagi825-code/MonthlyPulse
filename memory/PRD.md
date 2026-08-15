@@ -51,3 +51,29 @@ efactor: split `index.tsx` into `/src/budget/{shared, ExpenseModal, BudgetPanel,
 - **Editable categories**: categories are now dynamic (`Category = {name, icon, color}`), stored under `categories` key, default = DEFAULT_CATEGORIES. New `CategoryEditor.tsx` modal (name + icon grid + color grid). Add/rename/delete from Budget tab. Rename migrates expenses, recurring rules, and the limit key to the new name; delete keeps past expenses; last-category delete is guarded.
 - Per-category limits unchanged (saved on "Save budget"), now keyed to dynamic categories.
 - Tested via testing_agent iteration_4 — all 8 acceptance criteria PASS, no regressions.
+
+## Update (June 2026) — Phase 1 Enhancements (this session)
+User requested a large phased enhancement roadmap; agreed to build "everything, phased across sessions".
+User settings choices captured for later phases: Income remaining-mode = user-selectable in settings; Dark mode = manual toggle; Export = CSV + JSON backup/restore (both); Savings goals = tied to leftover budget automatically.
+
+**Phase 1 (DONE, tested — testing_agent iteration_1 all pass):**
+- History advanced search: amount range (min/max) + date range chips (All time / This month / Last 3 mo / This year) on top of existing note & category search. New `toggle-filters` panel + `clear-filters`.
+- Donut/ring chart per category on the Overview "Spending snapshot" (new `DonutChart.tsx`, uses react-native-svg) replacing the bar chart; center shows total spent; legend below.
+- Smarter nudge: weekend-vs-weekday spending pattern line in `InsightsCard.tsx` (conditional, shows when one side is >25% heavier per day).
+- CSV export + JSON backup + JSON restore under Budget → "DATA & BACKUP" (new `DataManager.tsx`; uses expo-file-system(legacy)/expo-sharing/expo-document-picker; web fallback = Blob download / fetch-read). `expensesToCSV` + `BackupData` added to `shared.ts`. Restore replaces all app state via `importData` in index.tsx.
+- Gentle month-end recap card on Overview (`month-recap-card`), shown only in the last 5 days of the month.
+
+**Remaining backlog (phased for next sessions), prioritized:**
+- P1 Income tracking — log income; "Remaining" mode selectable in settings (income−expenses vs budget cap). Touches storage model + core math.
+- P1 Savings goals — standalone goals tied to leftover budget automatically.
+- P1 Multiple accounts/wallets — Cash/Card/Bank balances.
+- P2 Yearly overview — 12-month view, best-saving months, averages.
+- P2 Dark mode — manual toggle (theme context; touches all stylesheets).
+- P2 Onboarding — 2-3 step first-run to set budget + currency.
+- P2 Quick-add presets — one-tap re-log common expenses.
+- P3 Home screen widget — remaining budget (needs native build).
+
+## Next Tasks
+- Phase 2: Income tracking + settings-based remaining mode, then Savings goals (tied to leftover).
+- Consider extracting the Overview screen out of index.tsx (currently ~700+ lines).
+- Migrate deprecated RN-web shadow* props to boxShadow (non-blocking warning).

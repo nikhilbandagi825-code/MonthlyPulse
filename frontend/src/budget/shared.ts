@@ -66,3 +66,28 @@ export const setCurrencySymbol = (symbol: string) => {
 };
 export const getCurrencySymbol = () => activeSymbol;
 export const money = (n: number) => `${activeSymbol}${n.toFixed(2)}`;
+
+// Full snapshot of everything we persist — used for backup / restore.
+export type BackupData = {
+  budget: number;
+  limits: Record<string, number>;
+  expenses: Expense[];
+  rollover: boolean;
+  recurring: RecurringRule[];
+  categories: Category[];
+  currency: Currency;
+};
+
+export const expensesToCSV = (expenses: Expense[]): string => {
+  const header = "Date,Category,Note,Amount,Payment";
+  const rows = expenses
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => {
+      const date = e.date.slice(0, 10);
+      const note = `"${(e.note || "").replace(/"/g, '""')}"`;
+      const cat = `"${e.category.replace(/"/g, '""')}"`;
+      return `${date},${cat},${note},${e.amount},${e.payment}`;
+    });
+  return [header, ...rows].join("\n");
+};
