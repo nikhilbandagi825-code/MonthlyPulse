@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { Category, Currency, RecurringRule, RemainingMode, catMeta, getCurrencySymbol, money, BackupData } from "./shared";
+import { Category, Currency, RecurringRule, RemainingMode, Wallet, catMeta, getCurrencySymbol, money, BackupData } from "./shared";
 import { Palette, useTheme } from "./theme";
 import CategoryEditor from "./CategoryEditor";
 import DataManager from "./DataManager";
+import WalletEditor from "./WalletEditor";
 
 export default function BudgetPanel({
   budget,
@@ -18,6 +19,7 @@ export default function BudgetPanel({
   backup,
   remainingMode,
   themeMode,
+  wallets,
   onSave,
   onDeleteRecurring,
   onChangeCurrency,
@@ -28,6 +30,9 @@ export default function BudgetPanel({
   onToast,
   onChangeRemainingMode,
   onToggleTheme,
+  onAddWallet,
+  onUpdateWallet,
+  onDeleteWallet,
 }: {
   budget: number;
   limits: Record<string, number>;
@@ -39,6 +44,7 @@ export default function BudgetPanel({
   backup: BackupData;
   remainingMode: RemainingMode;
   themeMode: "light" | "dark";
+  wallets: Wallet[];
   onSave: (value: number, limits: Record<string, number>, rollover: boolean) => void;
   onDeleteRecurring: (id: string) => void;
   onChangeCurrency: (currency: Currency) => void;
@@ -49,6 +55,9 @@ export default function BudgetPanel({
   onToast: (msg: string) => void;
   onChangeRemainingMode: (mode: RemainingMode) => void;
   onToggleTheme: () => void;
+  onAddWallet: (wallet: Omit<Wallet, "id">) => void;
+  onUpdateWallet: (id: string, wallet: Omit<Wallet, "id">) => void;
+  onDeleteWallet: (id: string) => void;
 }) {
   const { c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -57,9 +66,26 @@ export default function BudgetPanel({
   const [roll, setRoll] = useState(rollover);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [walletEditorOpen, setWalletEditorOpen] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customSymbol, setCustomSymbol] = useState("");
   const [customCode, setCustomCode] = useState("");
+
+  const openAddWallet = () => {
+    setEditingWallet(null);
+    setWalletEditorOpen(true);
+  };
+  const openEditWallet = (w: Wallet) => {
+    setEditingWallet(w);
+    setWalletEditorOpen(true);
+  };
+  const handleWalletSave = (w: Omit<Wallet, "id">, id?: string) => {
+    if (id) onUpdateWallet(id, w);
+    else onAddWallet(w);
+    setWalletEditorOpen(false);
+    setEditingWallet(null);
+  };
 
   const isPreset = currencies.some((cy) => cy.code === currency.code && cy.symbol === currency.symbol);
 
@@ -205,6 +231,33 @@ export default function BudgetPanel({
         </View>
       )}
 
+      <View style={styles.categoriesHeader}>
+        <Text style={[styles.inputLabel, { marginTop: 24, marginBottom: 0 }]}>YOUR WALLETS</Text>
+        <Pressable testID="add-wallet-button" onPress={openAddWallet} style={styles.addCategoryButton}>
+          <Ionicons name="add" size={16} color={c.primary} />
+          <Text style={styles.addCategoryText}>Add</Text>
+        </Pressable>
+      </View>
+      {wallets.map((w) => (
+        <View key={w.id} testID={`wallet-row-${w.name}`} style={styles.categoryManageRow}>
+          <View style={[styles.categorySwatch, { backgroundColor: `${w.color}22` }]}>
+            <Ionicons name={w.icon} size={18} color={w.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.categoryManageName}>{w.name}</Text>
+            <Text style={styles.walletOpening}>Opening {money(w.opening)}</Text>
+          </View>
+          <Pressable testID={`edit-wallet-${w.name}`} onPress={() => openEditWallet(w)} style={styles.categoryAction}>
+            <Ionicons name="create-outline" size={18} color={c.textLabel} />
+          </Pressable>
+          {wallets.length > 1 && (
+            <Pressable testID={`delete-wallet-${w.name}`} onPress={() => onDeleteWallet(w.id)} style={styles.categoryAction}>
+              <Ionicons name="trash-outline" size={18} color={c.dangerText} />
+            </Pressable>
+          )}
+        </View>
+      ))}
+
       <Text style={[styles.inputLabel, { marginTop: 24 }]}>MONTHLY BUDGET</Text>
       <View style={styles.moneyInput}>
         <Text style={styles.currency}>{getCurrencySymbol()}</Text>
@@ -336,6 +389,17 @@ export default function BudgetPanel({
         }}
         onSave={handleEditorSave}
       />
+
+      <WalletEditor
+        visible={walletEditorOpen}
+        initial={editingWallet}
+        existingNames={wallets.map((w) => w.name)}
+        onClose={() => {
+          setWalletEditorOpen(false);
+          setEditingWallet(null);
+        }}
+        onSave={handleWalletSave}
+      />
     </View>
   );
 }
@@ -368,6 +432,7 @@ const makeStyles = (c: Palette) =>
     categoryManageRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 14, padding: 10, marginTop: 8 },
     categorySwatch: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     categoryManageName: { flex: 1, color: c.text, fontSize: 15, fontWeight: "600" },
+    walletOpening: { color: c.textMuted, fontSize: 12, marginTop: 2 },
     categoryAction: { width: 36, height: 36, borderRadius: 12, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     limitNameWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
     limitDot: { width: 9, height: 9, borderRadius: 5 },

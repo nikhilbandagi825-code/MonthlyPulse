@@ -4,13 +4,14 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import { Ionicons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 
-import { Category, Draft, Expense, PAYMENTS, getCurrencySymbol } from "./shared";
+import { Category, Draft, Expense, Wallet, getCurrencySymbol } from "./shared";
 import { Palette, useTheme } from "./theme";
 
 export default function ExpenseModal({
   visible,
   editing,
   categories,
+  wallets,
   onClose,
   onSave,
   onDelete,
@@ -18,6 +19,7 @@ export default function ExpenseModal({
   visible: boolean;
   editing: Expense | null;
   categories: Category[];
+  wallets: Wallet[];
   onClose: () => void;
   onSave: (e: Draft, repeatMonthly: boolean) => void;
   onDelete: (id: string) => void;
@@ -27,7 +29,7 @@ export default function ExpenseModal({
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(categories[0]?.name ?? "");
   const [note, setNote] = useState("");
-  const [payment, setPayment] = useState(PAYMENTS[0]);
+  const [payment, setPayment] = useState(wallets[0]?.name ?? "");
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [repeat, setRepeat] = useState(false);
@@ -37,7 +39,7 @@ export default function ExpenseModal({
       setAmount(editing ? String(editing.amount) : "");
       setCategory(editing ? editing.category : categories[0]?.name ?? "");
       setNote(editing ? editing.note : "");
-      setPayment(editing ? editing.payment : PAYMENTS[0]);
+      setPayment(editing ? editing.payment : wallets[0]?.name ?? "");
       setDate(editing ? parseISO(editing.date) : new Date());
       setShowPicker(false);
       setRepeat(false);
@@ -130,16 +132,16 @@ export default function ExpenseModal({
               style={styles.textInput}
             />
 
-            <Text style={styles.inputLabel}>PAYMENT METHOD</Text>
+            <Text style={styles.inputLabel}>WALLET</Text>
             <View style={styles.chips}>
-              {PAYMENTS.map((item) => (
+              {wallets.map((w) => (
                 <Pressable
-                  testID={`payment-${item}`}
-                  key={item}
-                  onPress={() => setPayment(item)}
-                  style={[styles.chip, payment === item && styles.chipSelected]}
+                  testID={`payment-${w.name}`}
+                  key={w.id}
+                  onPress={() => setPayment(w.name)}
+                  style={[styles.chip, payment === w.name && styles.chipSelected]}
                 >
-                  <Text style={[styles.chipText, payment === item && styles.chipTextSelected]}>{item}</Text>
+                  <Text style={[styles.chipText, payment === w.name && styles.chipTextSelected]}>{w.name}</Text>
                 </Pressable>
               ))}
             </View>

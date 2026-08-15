@@ -23,9 +23,12 @@ import {
   Goal,
   Income,
   MonthBar,
+  Preset,
   RecurringRule,
   RemainingMode,
+  Wallet,
   STORAGE_KEY,
+  DEFAULT_WALLETS,
   BackupData,
   catMeta,
   money,
@@ -40,6 +43,7 @@ import DonutChart from "@/src/budget/DonutChart";
 import IncomeModal from "@/src/budget/IncomeModal";
 import GoalsPanel from "@/src/budget/GoalsPanel";
 import Onboarding from "@/src/budget/Onboarding";
+import QuickAddEditor from "@/src/budget/QuickAddEditor";
 
 const ONBOARD_KEY = "mp-onboarded";
 type Tab = "home" | "history" | "budget" | "goals";
@@ -58,6 +62,8 @@ export default function Index() {
   const [income, setIncome] = useState<Income[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [remainingMode, setRemainingMode] = useState<RemainingMode>("budget");
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [loaded, setLoaded] = useState(false);
   const [onboarded, setOnboarded] = useState(true);
@@ -68,6 +74,7 @@ export default function Index() {
   const [editing, setEditing] = useState<Expense | null>(null);
   const [showBudget, setShowBudget] = useState(false);
   const [showIncome, setShowIncome] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -99,6 +106,8 @@ export default function Index() {
           setIncome(Array.isArray(data.income) ? data.income : []);
           setGoals(Array.isArray(data.goals) ? data.goals : []);
           setRemainingMode(data.remainingMode === "cashflow" ? "cashflow" : "budget");
+          setPresets(Array.isArray(data.presets) ? data.presets : []);
+          setWallets(Array.isArray(data.wallets) && data.wallets.length ? data.wallets : DEFAULT_WALLETS);
           setOnboarded(true);
         } catch {
           await storage.removeItem(STORAGE_KEY);
@@ -115,10 +124,10 @@ export default function Index() {
     if (loaded) {
       storage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode }),
+        JSON.stringify({ budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode, presets, wallets }),
       );
     }
-  }, [budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode, loaded]);
+  }, [budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode, presets, wallets, loaded]);
 
   // Auto-add recurring expenses that are due this month.
   useEffect(() => {
@@ -226,12 +235,26 @@ export default function Index() {
   const { goalsWithSaved, unallocatedPool } = useMemo(() => {
     let rem = savingsPool;
     const list = goals.map((g) => {
-      const saved = Math.min(g.target, Math.max(rem, 0));
-      rem -= saved;
+      const boost = g.boost || 0;
+      const need = Math.max(g.target - boost, 0);
+      const autoTake = Math.min(need, Math.max(rem, 0));
+      rem -= autoTake;
+      const saved = Math.min(g.target, boost + autoTake);
       return { ...g, saved };
     });
     return { goalsWithSaved: list, unallocatedPool: Math.max(rem, 0) };
   }, [goals, savingsPool]);
+
+  // Per-wallet balance = opening + income into it − expenses paid from it.
+  const walletBalances = useMemo(
+    () =>
+      wallets.map((w) => {
+        const inc = income.filter((i) => i.wallet === w.name).reduce((s, i) => s + i.amount, 0);
+        const exp = expenses.filter((e) => e.payment === w.name).reduce((s, e) => s + e.amount, 0);
+        return { ...w, balance: w.opening + inc - exp };
+      }),
+    [wallets, income, expenses],
+  );
 
   const openAdd = () => {
     setEditing(null);
@@ -317,6 +340,46 @@ export default function Index() {
     setGoals((cur) => cur.filter((g) => g.id !== id));
     showToast("Goal removed");
   };
+  const boostGoal = (id: string, amount: number) => {
+    setGoals((cur) => cur.map((g) => (g.id === id ? { ...g, boost: Math.max((g.boost || 0) + amount, 0) } : g)));
+    showToast("Added to your goal");
+  };
+  const clearBoost = (id: string) => {
+    setGoals((cur) => cur.map((g) => (g.id === id ? { ...g, boost: 0 } : g)));
+    showToast("Manual top-ups cleared");
+  };
+  const addPreset = (p: Omit<Preset, "id">) => {
+    setPresets((cur) => [...cur, { ...p, id: `p-${Date.now()}` }]);
+    showToast("Quick-add saved");
+  };
+  const deletePreset = (id: string) => {
+    setPresets((cur) => cur.filter((p) => p.id !== id));
+    showToast("Quick-add removed");
+  };
+  const quickAdd = (p: Preset) => {
+    setExpenses((cur) => [
+      { id: `${Date.now()}`, amount: p.amount, category: p.category, note: p.label, payment: wallets[0]?.name ?? "Cash", date: new Date().toISOString() },
+      ...cur,
+    ]);
+    showToast(`${p.label} added`);
+  };
+  const addWallet = (w: Omit<Wallet, "id">) => {
+    setWallets((cur) => [...cur, { ...w, id: `w-${Date.now()}` }]);
+    showToast("Wallet added");
+  };
+  const updateWallet = (id: string, w: Omit<Wallet, "id">) => {
+    const old = wallets.find((x) => x.id === id);
+    setWallets((cur) => cur.map((x) => (x.id === id ? { ...w, id } : x)));
+    if (old && old.name !== w.name) {
+      setExpenses((cur) => cur.map((e) => (e.payment === old.name ? { ...e, payment: w.name } : e)));
+      setIncome((cur) => cur.map((i) => (i.wallet === old.name ? { ...i, wallet: w.name } : i)));
+    }
+    showToast("Wallet updated");
+  };
+  const deleteWallet = (id: string) => {
+    setWallets((cur) => (cur.length > 1 ? cur.filter((x) => x.id !== id) : cur));
+    showToast("Wallet removed");
+  };
   const importData = (data: BackupData) => {
     setBudget(data.budget ?? 3000);
     setLimits(data.limits ?? {});
@@ -328,6 +391,8 @@ export default function Index() {
     setIncome(Array.isArray(data.income) ? data.income : []);
     setGoals(Array.isArray(data.goals) ? data.goals : []);
     setRemainingMode(data.remainingMode === "cashflow" ? "cashflow" : "budget");
+    setPresets(Array.isArray(data.presets) ? data.presets : []);
+    setWallets(Array.isArray(data.wallets) && data.wallets.length ? data.wallets : DEFAULT_WALLETS);
     showToast("Backup restored");
   };
   const finishOnboarding = (b: number, cur: Currency) => {
@@ -367,7 +432,7 @@ export default function Index() {
   const pct = remBase > 0 ? Math.min((spent / remBase) * 100, 100) : 0;
   const isMonthEnd = daysLeft <= 5 && monthExpenses.length > 0;
 
-  const backup: BackupData = { budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode };
+  const backup: BackupData = { budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode, presets, wallets };
 
   const headerTitle =
     activeTab === "home"
@@ -453,6 +518,25 @@ export default function Index() {
                 <Text style={styles.incomeAddText}>Log</Text>
               </View>
             </Pressable>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.walletRowContent}
+              style={styles.walletRow}
+            >
+              {walletBalances.map((w) => (
+                <View key={w.id} testID={`wallet-balance-${w.name}`} style={styles.walletChip}>
+                  <View style={[styles.walletChipIcon, { backgroundColor: `${w.color}22` }]}>
+                    <Ionicons name={w.icon} size={16} color={w.color} />
+                  </View>
+                  <View>
+                    <Text style={styles.walletChipName}>{w.name}</Text>
+                    <Text style={[styles.walletChipBal, w.balance < 0 && { color: c.dangerText }]}>{money(w.balance)}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
 
             {isMonthEnd && (
               <View
@@ -560,6 +644,35 @@ export default function Index() {
             )}
 
             <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick add</Text>
+              <Pressable testID="new-quickadd-button" onPress={() => setShowQuickAdd(true)} style={styles.quickNewLink}>
+                <Ionicons name="add" size={15} color={c.primary} />
+                <Text style={styles.quickNewText}>New</Text>
+              </Pressable>
+            </View>
+            {presets.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
+                {presets.map((p) => (
+                  <Pressable
+                    key={p.id}
+                    testID={`quickadd-${p.id}`}
+                    onPress={() => quickAdd(p)}
+                    onLongPress={() => deletePreset(p.id)}
+                    style={styles.quickChip}
+                  >
+                    <Text style={styles.quickChipLabel}>{p.label}</Text>
+                    <Text style={styles.quickChipAmount}>{money(p.amount)}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <Pressable testID="quickadd-empty" onPress={() => setShowQuickAdd(true)} style={styles.quickEmpty}>
+                <Ionicons name="flash-outline" size={18} color={c.accent} />
+                <Text style={styles.quickEmptyText}>Save a one-tap preset like “Coffee $4”</Text>
+              </Pressable>
+            )}
+
+            <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent expenses</Text>
               <Text style={styles.month}>{monthExpenses.length} this month</Text>
             </View>
@@ -606,6 +719,7 @@ export default function Index() {
             history={history}
             expenses={expenses}
             categories={categories}
+            budget={budget}
             onEdit={openEdit}
             onDelete={(id) => setConfirmId(id)}
           />
@@ -618,6 +732,8 @@ export default function Index() {
             unallocated={unallocatedPool}
             onSaveGoal={saveGoal}
             onDeleteGoal={deleteGoal}
+            onBoost={boostGoal}
+            onClearBoost={clearBoost}
           />
         )}
 
@@ -633,6 +749,7 @@ export default function Index() {
             backup={backup}
             remainingMode={remainingMode}
             themeMode={mode}
+            wallets={wallets}
             onDeleteRecurring={deleteRecurring}
             onChangeCurrency={changeCurrency}
             onAddCategory={addCategory}
@@ -642,6 +759,9 @@ export default function Index() {
             onToast={showToast}
             onChangeRemainingMode={changeRemainingMode}
             onToggleTheme={toggle}
+            onAddWallet={addWallet}
+            onUpdateWallet={updateWallet}
+            onDeleteWallet={deleteWallet}
             onSave={(value, nextLimits, nextRollover) => {
               saveBudget(value, nextLimits, nextRollover);
               setActiveTab("home");
@@ -684,6 +804,7 @@ export default function Index() {
         visible={showExpense}
         editing={editing}
         categories={categories}
+        wallets={wallets}
         onClose={() => {
           setShowExpense(false);
           setEditing(null);
@@ -695,9 +816,20 @@ export default function Index() {
       <IncomeModal
         visible={showIncome}
         income={income}
+        wallets={wallets}
         onAdd={addIncome}
         onDelete={deleteIncome}
         onClose={() => setShowIncome(false)}
+      />
+
+      <QuickAddEditor
+        visible={showQuickAdd}
+        categories={categories}
+        onClose={() => setShowQuickAdd(false)}
+        onSave={(p) => {
+          addPreset(p);
+          setShowQuickAdd(false);
+        }}
       />
 
       <Modal visible={showBudget} animationType="slide" transparent>
@@ -715,6 +847,7 @@ export default function Index() {
                 backup={backup}
                 remainingMode={remainingMode}
                 themeMode={mode}
+                wallets={wallets}
                 onDeleteRecurring={deleteRecurring}
                 onChangeCurrency={changeCurrency}
                 onAddCategory={addCategory}
@@ -724,6 +857,9 @@ export default function Index() {
                 onToast={showToast}
                 onChangeRemainingMode={changeRemainingMode}
                 onToggleTheme={toggle}
+                onAddWallet={addWallet}
+                onUpdateWallet={updateWallet}
+                onDeleteWallet={deleteWallet}
                 onSave={(value, nextLimits, nextRollover) => {
                   saveBudget(value, nextLimits, nextRollover);
                   setShowBudget(false);
@@ -760,9 +896,9 @@ export default function Index() {
       {toast && (
         <Animated.View
           testID="toast"
-          pointerEvents="none"
           style={[
             styles.toast,
+            { pointerEvents: "none" },
             { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] },
           ]}
         >
@@ -806,6 +942,20 @@ const makeStyles = (c: Palette) =>
     incomeAmount: { color: c.text, fontSize: 24, fontWeight: "700", marginTop: 3 },
     incomeAdd: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.primary, borderRadius: 14, paddingHorizontal: 14, height: 40 },
     incomeAddText: { color: c.dark ? "#0E140D" : "#FFFFFF", fontSize: 14, fontWeight: "700" },
+    walletRow: { marginTop: 12, marginHorizontal: -24 },
+    walletRowContent: { paddingHorizontal: 24, gap: 10 },
+    walletChip: { flexShrink: 0, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+    walletChipIcon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+    walletChipName: { color: c.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+    walletChipBal: { color: c.text, fontSize: 15, fontWeight: "700", marginTop: 1 },
+    quickRow: { gap: 10, paddingRight: 4 },
+    quickChip: { flexShrink: 0, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10, minWidth: 92 },
+    quickChipLabel: { color: c.text, fontSize: 14, fontWeight: "700" },
+    quickChipAmount: { color: c.primary, fontSize: 13, fontWeight: "700", marginTop: 2 },
+    quickNewLink: { flexDirection: "row", alignItems: "center", gap: 3 },
+    quickNewText: { color: c.primary, fontSize: 13, fontWeight: "700" },
+    quickEmpty: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14 },
+    quickEmptyText: { color: c.textMuted, fontSize: 13, fontWeight: "600" },
     recapCard: { marginTop: 16, flexDirection: "row", alignItems: "flex-start", gap: 13, borderRadius: 20, borderWidth: 1, padding: 16 },
     recapCardGood: { backgroundColor: c.surfaceTint, borderColor: c.borderSelected },
     recapCardOver: { backgroundColor: c.dangerSoft, borderColor: c.warnBorder },

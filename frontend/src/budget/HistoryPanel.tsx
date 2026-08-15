@@ -18,12 +18,14 @@ export default function HistoryPanel({
   history,
   expenses,
   categories,
+  budget,
   onEdit,
   onDelete,
 }: {
   history: MonthBar[];
   expenses: Expense[];
   categories: Category[];
+  budget: number;
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
 }) {
@@ -34,6 +36,34 @@ export default function HistoryPanel({
   const active = history.filter((h) => h.total > 0);
   const avg = active.length ? active.reduce((s, h) => s + h.total, 0) / active.length : 0;
   const highest = history.reduce((a, b) => (b.total > a.total ? b : a), history[0]);
+
+  const [view, setView] = useState<"recent" | "year">("recent");
+
+  const yearNow = new Date();
+  const yearData = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, m) => {
+      const total = expenses
+        .filter((e) => {
+          const d = parseISO(e.date);
+          return d.getFullYear() === yearNow.getFullYear() && d.getMonth() === m;
+        })
+        .reduce((s, e) => s + e.amount, 0);
+      return { m, label: format(new Date(yearNow.getFullYear(), m, 1), "MMM"), total, isCurrent: m === yearNow.getMonth() };
+    });
+    const withData = months.filter((x) => x.total > 0);
+    const yearTotal = months.reduce((s, x) => s + x.total, 0);
+    const yearAvg = withData.length ? yearTotal / withData.length : 0;
+    // Best-saving month = biggest positive (budget − spend) among months with spending.
+    let best: { label: string; saved: number } | null = null;
+    withData.forEach((x) => {
+      const saved = budget - x.total;
+      if (saved > 0 && (!best || saved > best.saved)) best = { label: x.label, saved };
+    });
+    const yearMax = Math.max(...months.map((x) => x.total), 1);
+    return { months, yearTotal, yearAvg, best, yearMax };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses, budget]);
+
 
   const [query, setQuery] = useState("");
   const [filterCat, setFilterCat] = useState<string | null>(null);
@@ -223,48 +253,112 @@ export default function HistoryPanel({
         </>
       ) : (
         <>
-          <View style={styles.trendStatsRow}>
-            <View style={styles.trendStat}>
-              <Text style={styles.cardLabelDark}>MONTHLY AVERAGE</Text>
-              <Text testID="trend-average" style={styles.trendStatValue}>{money(avg)}</Text>
-            </View>
-            <View style={styles.trendStat}>
-              <Text style={styles.cardLabelDark}>HIGHEST MONTH</Text>
-              <Text testID="trend-highest" style={styles.trendStatValue}>{highest.total > 0 ? highest.label : "—"}</Text>
-            </View>
+          <View style={styles.viewSegment}>
+            <Pressable testID="view-recent" onPress={() => setView("recent")} style={[styles.viewItem, view === "recent" && styles.viewItemActive]}>
+              <Text style={[styles.viewText, view === "recent" && styles.viewTextActive]}>Last 6 months</Text>
+            </Pressable>
+            <Pressable testID="view-year" onPress={() => setView("year")} style={[styles.viewItem, view === "year" && styles.viewItemActive]}>
+              <Text style={[styles.viewText, view === "year" && styles.viewTextActive]}>{yearNow.getFullYear()}</Text>
+            </Pressable>
           </View>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Last 6 months</Text>
-          </View>
-          <View style={styles.chartCard}>
-            <View style={styles.trendBars}>
-              {history.map((h) => (
-                <View key={h.key} testID={`trend-${h.key}`} style={styles.trendBarItem}>
-                  <Text style={styles.trendAmount}>{h.total > 0 ? `${getCurrencySymbol()}${Math.round(h.total)}` : ""}</Text>
-                  <View style={styles.trendTrack}>
-                    <View
-                      style={[
-                        styles.trendFill,
-                        {
-                          height: `${Math.max((h.total / max) * 100, h.total > 0 ? 6 : 0)}%`,
-                          backgroundColor: h.isCurrent ? c.primary : c.accentSoft,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.trendLabel, h.isCurrent && styles.trendLabelActive]}>{h.label}</Text>
+          {view === "recent" ? (
+            <>
+              <View style={styles.trendStatsRow}>
+                <View style={styles.trendStat}>
+                  <Text style={styles.cardLabelDark}>MONTHLY AVERAGE</Text>
+                  <Text testID="trend-average" style={styles.trendStatValue}>{money(avg)}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
+                <View style={styles.trendStat}>
+                  <Text style={styles.cardLabelDark}>HIGHEST MONTH</Text>
+                  <Text testID="trend-highest" style={styles.trendStatValue}>{highest.total > 0 ? highest.label : "—"}</Text>
+                </View>
+              </View>
 
-          {active.length === 0 && (
-            <View style={styles.historyEmpty}>
-              <Ionicons name="trending-up-outline" size={28} color={c.accentSoft} />
-              <Text style={styles.emptyTitle}>No history yet</Text>
-              <Text style={styles.muted}>Your monthly trends appear as you track spending.</Text>
-            </View>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Last 6 months</Text>
+              </View>
+              <View style={styles.chartCard}>
+                <View style={styles.trendBars}>
+                  {history.map((h) => (
+                    <View key={h.key} testID={`trend-${h.key}`} style={styles.trendBarItem}>
+                      <Text style={styles.trendAmount}>{h.total > 0 ? `${getCurrencySymbol()}${Math.round(h.total)}` : ""}</Text>
+                      <View style={styles.trendTrack}>
+                        <View
+                          style={[
+                            styles.trendFill,
+                            {
+                              height: `${Math.max((h.total / max) * 100, h.total > 0 ? 6 : 0)}%`,
+                              backgroundColor: h.isCurrent ? c.primary : c.accentSoft,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.trendLabel, h.isCurrent && styles.trendLabelActive]}>{h.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {active.length === 0 && (
+                <View style={styles.historyEmpty}>
+                  <Ionicons name="trending-up-outline" size={28} color={c.accentSoft} />
+                  <Text style={styles.emptyTitle}>No history yet</Text>
+                  <Text style={styles.muted}>Your monthly trends appear as you track spending.</Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={styles.trendStatsRow}>
+                <View style={styles.trendStat}>
+                  <Text style={styles.cardLabelDark}>SPENT IN {yearNow.getFullYear()}</Text>
+                  <Text testID="year-total" style={styles.trendStatValue}>{money(yearData.yearTotal)}</Text>
+                </View>
+                <View style={styles.trendStat}>
+                  <Text style={styles.cardLabelDark}>MONTHLY AVERAGE</Text>
+                  <Text testID="year-average" style={styles.trendStatValue}>{money(yearData.yearAvg)}</Text>
+                </View>
+              </View>
+
+              <View testID="best-saving-card" style={styles.bestCard}>
+                <View style={styles.bestIcon}>
+                  <Ionicons name="trophy-outline" size={20} color={c.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardLabelDark}>BEST SAVING MONTH</Text>
+                  <Text testID="best-saving-text" style={styles.bestText}>
+                    {yearData.best
+                      ? `${yearData.best.label} — ${money(yearData.best.saved)} under budget`
+                      : "Stay under budget to earn a best-saving month"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>12-month view</Text>
+              </View>
+              <View style={styles.chartCard}>
+                <View style={styles.yearBars}>
+                  {yearData.months.map((h) => (
+                    <View key={h.m} testID={`year-${h.m}`} style={styles.yearBarItem}>
+                      <View style={styles.yearTrack}>
+                        <View
+                          style={[
+                            styles.trendFill,
+                            {
+                              height: `${Math.max((h.total / yearData.yearMax) * 100, h.total > 0 ? 6 : 0)}%`,
+                              backgroundColor: h.isCurrent ? c.primary : c.accentSoft,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.yearLabel, h.isCurrent && styles.trendLabelActive]}>{h.label.slice(0, 1)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
           )}
         </>
       )}
@@ -319,4 +413,16 @@ const makeStyles = (c: Palette) =>
     trendLabel: { color: c.placeholder, fontSize: 11, marginTop: 8, fontWeight: "600" },
     trendLabelActive: { color: c.primary },
     historyEmpty: { alignItems: "center", paddingVertical: 30, gap: 8 },
+    viewSegment: { flexDirection: "row", backgroundColor: c.surface2, borderRadius: 14, padding: 4, gap: 4, marginTop: 4 },
+    viewItem: { flex: 1, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+    viewItemActive: { backgroundColor: c.surface, borderColor: c.borderSelected, borderWidth: 1 },
+    viewText: { color: c.textLabel, fontSize: 13, fontWeight: "600" },
+    viewTextActive: { color: c.primary, fontWeight: "700" },
+    bestCard: { flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 18, padding: 16, marginTop: 14 },
+    bestIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: c.surfaceTint, alignItems: "center", justifyContent: "center" },
+    bestText: { color: c.text, fontSize: 15, fontWeight: "700", marginTop: 4 },
+    yearBars: { height: 150, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+    yearBarItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "flex-end" },
+    yearTrack: { height: 120, width: 14, backgroundColor: c.surface2, borderRadius: 7, justifyContent: "flex-end", overflow: "hidden" },
+    yearLabel: { color: c.placeholder, fontSize: 10, marginTop: 6, fontWeight: "600" },
   });

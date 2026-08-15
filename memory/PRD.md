@@ -74,9 +74,20 @@ User settings choices captured for later phases: Income remaining-mode = user-se
 - P3 Home screen widget — remaining budget (needs native build).
 
 ## Next Tasks
-- Phase 3 candidates: Multiple wallets, Yearly overview, Quick-add presets, Home-screen widget (native build).
-- Consider extracting Overview subcomponents from index.tsx (now ~860 lines).
-- Migrate deprecated RN-web shadow* props to boxShadow (non-blocking warning).
+- Consider extracting OverviewScreen + a useBudgetState hook from index.tsx (now ~1000+ lines).
+- Add a schema `version` to the storage payload for future migrations.
+- Migrate remaining deprecated RN-web shadow* props to boxShadow (non-blocking).
+
+## Update (June 2026) — Phase 3 Enhancements (tested — testing_agent iteration_3 all pass)
+- **Goal Boost**: `Goal.boost` (manual top-up). Allocation in index.tsx now: boost is guaranteed first, then `savingsPool` fills each goal's remaining need in array order. GoalsPanel adds `add-to-goal-<id>` (boost prompt: `boost-amount-input`/`confirm-boost-button`) + `clear-boost-<id>`; shows "Includes $X you added manually".
+- **Quick Add presets**: new `Preset` type + `presets[]`. `QuickAddEditor.tsx` (label/amount/category). Overview "Quick add" horizontal chip row — tap logs instantly (date=now, wallet=first), long-press deletes; `new-quickadd-button`.
+- **Yearly Overview**: HistoryPanel `view` segmented (`view-recent`/`view-year`). Year view = 12-month bar chart (current year), `year-total`, `year-average`, best-saving-month card (max positive budget−spend). Needs `budget` prop.
+- **Multiple Wallets**: new `Wallet` type + `wallets[]` (DEFAULT_WALLETS = Cash/Card/Bank, each with opening balance). The expense `payment` field IS the wallet name (income gets optional `wallet`). ExpenseModal/IncomeModal render wallet chips (`payment-<name>`, `income-wallet-<name>`). Per-wallet balance = opening + income into it − expenses from it, shown as `wallet-balance-<name>` chips on Overview. Managed in Budget "YOUR WALLETS" via `WalletEditor.tsx`; rename migrates expenses/income.
+- `BackupData` + storage + import now include `presets` and `wallets`.
+
+## Backlog (remaining / ideas)
+- P3 Home screen widget — remaining budget (needs native build).
+- Refactor: extract Overview screen + state hook from index.tsx.
 
 ## Update (June 2026) — Phase 2 Enhancements (tested — testing_agent iteration_2 all pass)
 - **Theme system**: new `src/budget/theme.ts` (LIGHT/DARK `Palette`, `ThemeContext`, `useTheme`). `_layout.tsx` now hosts `ThemeContext.Provider`, persists mode under storage key `mp-theme`. All budget components + `index.tsx` converted from static `StyleSheet.create` to `makeStyles(c)` factories (theme-aware). Brand greens/hero stay constant across modes.

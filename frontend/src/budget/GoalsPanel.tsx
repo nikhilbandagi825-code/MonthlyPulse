@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { Goal, money } from "./shared";
+import { Goal, getCurrencySymbol, money } from "./shared";
 import { Palette, useTheme } from "./theme";
 import GoalEditor from "./GoalEditor";
 
@@ -14,17 +14,23 @@ export default function GoalsPanel({
   unallocated,
   onSaveGoal,
   onDeleteGoal,
+  onBoost,
+  onClearBoost,
 }: {
   goals: GoalWithSaved[];
   pool: number;
   unallocated: number;
   onSaveGoal: (goal: Omit<Goal, "id">, id?: string) => void;
   onDeleteGoal: (id: string) => void;
+  onBoost: (id: string, amount: number) => void;
+  onClearBoost: (id: string) => void;
 }) {
   const { c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
+  const [boostFor, setBoostFor] = useState<string | null>(null);
+  const [boostAmount, setBoostAmount] = useState("");
 
   const openAdd = () => {
     setEditing(null);
@@ -39,6 +45,16 @@ export default function GoalsPanel({
     setEditorOpen(false);
     setEditing(null);
   };
+  const openBoost = (id: string) => {
+    setBoostFor(id);
+    setBoostAmount("");
+  };
+  const confirmBoost = () => {
+    const amt = Number(boostAmount) || 0;
+    if (boostFor && amt > 0) onBoost(boostFor, amt);
+    setBoostFor(null);
+    setBoostAmount("");
+  };
 
   const totalSaved = goals.reduce((s, g) => s + g.saved, 0);
 
@@ -51,8 +67,8 @@ export default function GoalsPanel({
         <Text style={styles.poolLabel}>SAVED FROM LEFTOVER BUDGET</Text>
         <Text testID="savings-pool" style={styles.poolValue}>{money(pool)}</Text>
         <Text style={styles.poolHint}>
-          Each month you stay under budget, the leftover quietly fills your goals below
-          {unallocated > 0 ? ` — ${money(unallocated)} waiting for a new goal.` : "."}
+          Each month you stay under budget, the leftover quietly fills your goals — and you can top any goal up by hand
+          {unallocated > 0 ? ` (${money(unallocated)} of pool waiting for a new goal).` : "."}
         </Text>
       </View>
 
@@ -74,6 +90,7 @@ export default function GoalsPanel({
         goals.map((g) => {
           const ratio = g.target > 0 ? g.saved / g.target : 0;
           const done = ratio >= 1;
+          const boost = g.boost || 0;
           return (
             <View key={g.id} testID={`goal-${g.id}`} style={styles.goalCard}>
               <View style={styles.goalTop}>
@@ -95,14 +112,24 @@ export default function GoalsPanel({
               <View style={styles.track}>
                 <View style={[styles.fill, { width: `${Math.min(ratio * 100, 100)}%`, backgroundColor: done ? c.accent : g.color }]} />
               </View>
+              {boost > 0 && (
+                <Text testID={`goal-boost-${g.id}`} style={styles.boostHint}>Includes {money(boost)} you added manually</Text>
+              )}
               <View style={styles.goalActions}>
+                <Pressable testID={`add-to-goal-${g.id}`} onPress={() => openBoost(g.id)} style={[styles.actionButton, styles.actionPrimary]}>
+                  <Ionicons name="add-circle-outline" size={16} color={c.primary} />
+                  <Text style={[styles.actionText, { color: c.primary }]}>Add money</Text>
+                </Pressable>
                 <Pressable testID={`edit-goal-${g.id}`} onPress={() => openEdit(g)} style={styles.actionButton}>
                   <Ionicons name="create-outline" size={16} color={c.textLabel} />
-                  <Text style={styles.actionText}>Edit</Text>
                 </Pressable>
+                {boost > 0 && (
+                  <Pressable testID={`clear-boost-${g.id}`} onPress={() => onClearBoost(g.id)} style={styles.actionButton}>
+                    <Ionicons name="refresh-outline" size={16} color={c.textLabel} />
+                  </Pressable>
+                )}
                 <Pressable testID={`delete-goal-${g.id}`} onPress={() => onDeleteGoal(g.id)} style={styles.actionButton}>
                   <Ionicons name="trash-outline" size={16} color={c.dangerText} />
-                  <Text style={[styles.actionText, { color: c.dangerText }]}>Delete</Text>
                 </Pressable>
               </View>
             </View>
@@ -123,6 +150,34 @@ export default function GoalsPanel({
         }}
         onSave={handleSave}
       />
+
+      <Modal visible={!!boostFor} animationType="fade" transparent>
+        <View style={styles.boostBackdrop}>
+          <View style={styles.boostCard}>
+            <Text style={styles.boostTitle}>Add to this goal</Text>
+            <Text style={styles.boostBody}>Top up on your own, on top of the automatic monthly leftover.</Text>
+            <View style={styles.moneyInput}>
+              <Text style={styles.currency}>{getCurrencySymbol()}</Text>
+              <TextInput
+                testID="boost-amount-input"
+                value={boostAmount}
+                onChangeText={setBoostAmount}
+                placeholder="50"
+                placeholderTextColor={c.placeholder}
+                keyboardType="decimal-pad"
+                autoFocus
+                style={styles.moneyText}
+              />
+            </View>
+            <Pressable testID="confirm-boost-button" onPress={confirmBoost} style={styles.boostPrimary}>
+              <Text style={styles.boostPrimaryText}>Add money</Text>
+            </Pressable>
+            <Pressable testID="cancel-boost-button" onPress={() => setBoostFor(null)} style={styles.boostCancel}>
+              <Text style={styles.boostCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -149,8 +204,21 @@ const makeStyles = (c: Palette) =>
     goalPct: { color: c.textLabel, fontSize: 15, fontWeight: "700" },
     track: { height: 10, backgroundColor: c.surface2, borderRadius: 5, overflow: "hidden" },
     fill: { height: "100%", borderRadius: 5 },
+    boostHint: { color: c.accent, fontSize: 12, fontWeight: "600", marginTop: 8 },
     goalActions: { flexDirection: "row", gap: 8, marginTop: 14 },
-    actionButton: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: c.surface2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+    actionButton: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: c.surface2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+    actionPrimary: { backgroundColor: c.surfaceTint },
     actionText: { color: c.textLabel, fontSize: 13, fontWeight: "600" },
     footNote: { color: c.textMuted, fontSize: 12, textAlign: "center", marginTop: 4 },
+    boostBackdrop: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.overlay, padding: 32 },
+    boostCard: { backgroundColor: c.surface, borderRadius: 24, padding: 24, width: "100%" },
+    boostTitle: { color: c.text, fontSize: 19, fontWeight: "700", marginBottom: 6 },
+    boostBody: { color: c.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 16 },
+    moneyInput: { flexDirection: "row", alignItems: "center", backgroundColor: c.bgAlt, borderColor: c.border, borderWidth: 1, borderRadius: 16, height: 58, paddingHorizontal: 16 },
+    currency: { color: c.primary, fontSize: 20, fontWeight: "700" },
+    moneyText: { flex: 1, color: c.text, fontSize: 26, fontWeight: "700", paddingLeft: 8 },
+    boostPrimary: { height: 52, borderRadius: 16, backgroundColor: c.primary, alignItems: "center", justifyContent: "center", marginTop: 18 },
+    boostPrimaryText: { color: c.dark ? "#0E140D" : "#FFFFFF", fontSize: 16, fontWeight: "700" },
+    boostCancel: { paddingVertical: 14, alignItems: "center" },
+    boostCancelText: { color: c.textLabel, fontSize: 15, fontWeight: "600" },
   });

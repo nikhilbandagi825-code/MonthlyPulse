@@ -25,6 +25,7 @@ export type Income = {
   amount: number;
   source: string;
   date: string;
+  wallet?: string;
 };
 
 export type Goal = {
@@ -33,7 +34,29 @@ export type Goal = {
   target: number;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  boost?: number;
 };
+
+export type Preset = {
+  id: string;
+  label: string;
+  amount: number;
+  category: string;
+};
+
+export type Wallet = {
+  id: string;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  opening: number;
+};
+
+export const DEFAULT_WALLETS: Wallet[] = [
+  { id: "w-cash", name: "Cash", icon: "cash-outline", color: "#52B788", opening: 0 },
+  { id: "w-card", name: "Card", icon: "card-outline", color: "#2D6A4F", opening: 0 },
+  { id: "w-bank", name: "Bank", icon: "business-outline", color: "#6C8EAD", opening: 0 },
+];
 
 export type RemainingMode = "budget" | "cashflow";
 
@@ -96,6 +119,8 @@ export type BackupData = {
   income: Income[];
   goals: Goal[];
   remainingMode: RemainingMode;
+  presets: Preset[];
+  wallets: Wallet[];
 };
 
 export const GOAL_ICONS: (keyof typeof Ionicons.glyphMap)[] = [

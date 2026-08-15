@@ -4,7 +4,7 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import { Ionicons } from "@expo/vector-icons";
 import { format, isSameMonth, parseISO } from "date-fns";
 
-import { Income, getCurrencySymbol, money } from "./shared";
+import { Income, Wallet, getCurrencySymbol, money } from "./shared";
 import { Palette, useTheme } from "./theme";
 
 const SOURCES = ["Salary", "Freelance", "Gift", "Refund", "Other"];
@@ -12,12 +12,14 @@ const SOURCES = ["Salary", "Freelance", "Gift", "Refund", "Other"];
 export default function IncomeModal({
   visible,
   income,
+  wallets,
   onAdd,
   onDelete,
   onClose,
 }: {
   visible: boolean;
   income: Income[];
+  wallets: Wallet[];
   onAdd: (draft: Omit<Income, "id">) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -26,6 +28,7 @@ export default function IncomeModal({
   const styles = useMemo(() => makeStyles(c), [c]);
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState(SOURCES[0]);
+  const [wallet, setWallet] = useState(wallets[0]?.name ?? "");
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
 
@@ -33,6 +36,7 @@ export default function IncomeModal({
     if (visible) {
       setAmount("");
       setSource(SOURCES[0]);
+      setWallet(wallets[0]?.name ?? "");
       setDate(new Date());
       setShowPicker(false);
     }
@@ -52,7 +56,7 @@ export default function IncomeModal({
 
   const add = () => {
     if (!valid) return;
-    onAdd({ amount: Number(amount), source, date: date.toISOString() });
+    onAdd({ amount: Number(amount), source, date: date.toISOString(), wallet });
     setAmount("");
   };
 
@@ -99,6 +103,24 @@ export default function IncomeModal({
                 </Pressable>
               ))}
             </View>
+
+            {wallets.length > 0 && (
+              <>
+                <Text style={styles.label}>INTO WALLET</Text>
+                <View style={styles.chips}>
+                  {wallets.map((w) => (
+                    <Pressable
+                      key={w.id}
+                      testID={`income-wallet-${w.name}`}
+                      onPress={() => setWallet(w.name)}
+                      style={[styles.chip, wallet === w.name && styles.chipSelected]}
+                    >
+                      <Text style={[styles.chipText, wallet === w.name && styles.chipTextSelected]}>{w.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
 
             <Text style={styles.label}>DATE</Text>
             <Pressable testID="income-date-button" onPress={() => setShowPicker((s) => !s)} style={styles.dateButton}>

@@ -1,0 +1,35 @@
+{
+  "summary": "Phase 3 frontend testing on Expo web preview (390x844 mobile viewport) covering Quick Add presets, Wallets on Overview, Wallet management in Budget, ExpenseModal wallet chips, IncomeModal wallet chips, Goal Boost, and Yearly Overview. All 4 new features work end-to-end: (1) Quick Add — new-quickadd-button opens QuickAddEditor; saving 'Coffee $4 · Food' creates a preset chip (quickadd-p-*), tapping it instantly logs an expense (Cash wallet balance dropped from $0.00 to -$4.00, remaining decreased), long-press removes the preset. (2) Wallets on Overview — Cash/Card/Bank chips render horizontally with wallet-balance-<name> testIDs and balances update after quick-add. (3) Budget → YOUR WALLETS — add-wallet-button opens WalletEditor; created 'Savings' with $500 opening, chip appears on Overview with $500.00; rename & delete flows work. (4) ExpenseModal shows payment-<walletName> chips for Cash/Card/Bank/Savings; IncomeModal shows income-wallet-<walletName> chips for all wallets. (5) Goal Boost — added goal 'Trip' target $1000, add-to-goal-<id> opened prompt, boost-amount-input=$250 + confirm-boost-button rendered 'Includes $250.00 you added manually' via goal-boost-<id>; clear-boost-<id> resets to 0 (goal-boost element removed). (6) Yearly Overview — view-recent/view-year toggle works; view-year renders year-total, year-average, best-saving-card with best-saving-text placeholder ('Stay under budget to earn a best-saving month' when no leftover) and exactly 12 bars (year-0 through year-11). Regressions verified: onboarding first-run (onboard-next-0/1/finish with budget input), add-expense-button FAB only on Overview, 4 tabs navigate correctly, remaining-amount + safe-to-spend + income-card + donut chart empty state all render.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "IncomeModal (and other bottom sheets)", "issues": ["When captured at 390px viewport on web preview, the sheet contents appear horizontally offset — labels like 'Income', 'AMOUNT', 'WALLET', and the Cash chip get clipped on the left edge (e.g., visible as 'come', 'UNT', 'sh'). Likely a react-native-web layout quirk with sheet padding/ScrollView. Verify actual device rendering; consider capping sheet width or using alignSelf:'stretch' with fixed left/right insets."]}
+    ],
+    "react_native_issues": [
+      {"component": "Shadow styles (shadow*)", "issue": "Repeated console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted for hero/fab/toast/etc. Non-breaking. Reference: /app/frontend/app/index.tsx (heroCard, fab, toast styles) and other files using shadowColor/shadowOpacity/shadowRadius."},
+      {"component": "Animated pointerEvents prop", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' — toast Animated.View. Reference: /app/frontend/app/index.tsx around line 899."},
+      {"component": "Animated useNativeDriver on web", "issue": "'useNativeDriver is not supported... Falling back to JS-based animation.' Consider Platform.OS gate or set useNativeDriver:false for web preview."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate/verify IncomeModal (and possibly ExpenseModal/QuickAddEditor/WalletEditor) sheet horizontal offset on narrow web viewport — content appears shifted left, clipping labels. Likely benign on native but confirm on device.",
+    "Optional: migrate shadow* props to boxShadow and move Animated pointerEvents into style to clear RN-web deprecation warnings.",
+    "No functional Phase 3 fixes required — all 4 new features fully working."
+  ],
+  "critical_code_review_comments": [
+    "app/index.tsx is ~1015 lines (grew from ~866 in Phase 2). Now holds state + effects + 12+ callbacks + a massive StyleSheet. Strongly recommend extracting an OverviewScreen component and a useBudgetState hook.",
+    "walletBalances useMemo does 3 array iterations per wallet — fine at small N but scales O(w * (i + e)); consider precomputing sums into a Map if wallet/expense counts grow.",
+    "clearBoost sets boost to 0 but keeps the goal.boost field; consider deleting the property for cleaner storage payloads.",
+    "Storage payload keeps growing (budget, limits, expenses, rollover, recurring, categories, currency, income, goals, remainingMode, presets, wallets) — no schema versioning. Add a version key for future migrations."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only requested)", "frontend": "100% (7/7 Phase 3 flows + regressions verified)"},
+  "seed_data_creation": "In-browser localStorage seeded via completing onboarding (budget=3000). Added a preset (Coffee $4), a goal (Trip $1000), and a wallet (Savings $500) during testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Storage key 'serene-budget'; onboarding flag 'mp-onboarded'. Fresh Playwright contexts start with empty localStorage — must complete onboarding (onboard-next-0 → budget-input → onboard-next-1 → onboard-finish) before other flows. Default wallets are Cash/Card/Bank; default quick-add wallet is the first wallet (Cash). Savings pool = 0 until a prior completed month has under-budget expenses — Goal Boost is the primary way to fund goals initially. Best-saving month shows placeholder text when no month has positive leftover — expected. Long-press on preset chip removes it (mouse.down + wait 900ms + mouse.up in Playwright). Note: react-native Modal renders children into DOM even when visible=false in react-native-web, so testID existence alone isn't proof of visibility — verify with visible screenshot or focus/interaction.",
+  "rca_of_issue": ""
+}
