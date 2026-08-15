@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
@@ -7,10 +7,10 @@ import * as DocumentPicker from "expo-document-picker";
 import { format } from "date-fns";
 
 import { BackupData, DEFAULT_CATEGORIES, CURRENCIES, expensesToCSV } from "./shared";
+import { Palette, useTheme } from "./theme";
 
 const stamp = () => format(new Date(), "yyyy-MM-dd");
 
-// Web-only helper: trigger a browser download for a text blob.
 const webDownload = (filename: string, content: string, mime: string) => {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -46,6 +46,8 @@ export default function DataManager({
   onImport: (data: BackupData) => void;
   onToast: (msg: string) => void;
 }) {
+  const { c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const [busy, setBusy] = useState(false);
 
   const exportCSV = async () => {
@@ -67,7 +69,7 @@ export default function DataManager({
   const exportJSON = async () => {
     setBusy(true);
     try {
-      const payload = JSON.stringify({ app: "MonthlyPulse", version: 1, ...backup }, null, 2);
+      const payload = JSON.stringify({ app: "MonthlyPulse", version: 2, ...backup }, null, 2);
       await shareText(`monthlypulse-backup-${stamp()}.json`, payload, "application/json");
       onToast("Backup file created");
     } catch {
@@ -104,6 +106,9 @@ export default function DataManager({
         recurring: Array.isArray(parsed.recurring) ? parsed.recurring : [],
         categories: Array.isArray(parsed.categories) && parsed.categories.length ? parsed.categories : DEFAULT_CATEGORIES,
         currency: parsed.currency && parsed.currency.symbol ? parsed.currency : CURRENCIES[0],
+        income: Array.isArray(parsed.income) ? parsed.income : [],
+        goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+        remainingMode: parsed.remainingMode === "cashflow" ? "cashflow" : "budget",
       };
       onImport(data);
     } catch {
@@ -117,45 +122,46 @@ export default function DataManager({
     <View>
       <Text style={styles.label}>DATA & BACKUP</Text>
       <Pressable testID="export-csv-button" disabled={busy} onPress={exportCSV} style={styles.row}>
-        <View style={[styles.rowIcon, { backgroundColor: "#EAF4EE" }]}>
-          <Ionicons name="download-outline" size={19} color="#2D6A4F" />
+        <View style={[styles.rowIcon, { backgroundColor: c.surfaceTint }]}>
+          <Ionicons name="download-outline" size={19} color={c.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>Export to CSV</Text>
           <Text style={styles.rowHint}>Share a spreadsheet of every expense</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#9BAEA1" />
+        <Ionicons name="chevron-forward" size={18} color={c.placeholder} />
       </Pressable>
 
       <Pressable testID="export-json-button" disabled={busy} onPress={exportJSON} style={styles.row}>
-        <View style={[styles.rowIcon, { backgroundColor: "#EAF4EE" }]}>
-          <Ionicons name="save-outline" size={19} color="#2D6A4F" />
+        <View style={[styles.rowIcon, { backgroundColor: c.surfaceTint }]}>
+          <Ionicons name="save-outline" size={19} color={c.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>Back up my data</Text>
           <Text style={styles.rowHint}>Save a file you can restore on any phone</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#9BAEA1" />
+        <Ionicons name="chevron-forward" size={18} color={c.placeholder} />
       </Pressable>
 
       <Pressable testID="import-json-button" disabled={busy} onPress={importJSON} style={styles.row}>
-        <View style={[styles.rowIcon, { backgroundColor: "#FFF1DF" }]}>
-          <Ionicons name="cloud-upload-outline" size={19} color="#B86B22" />
+        <View style={[styles.rowIcon, { backgroundColor: c.warnIconBg }]}>
+          <Ionicons name="cloud-upload-outline" size={19} color={c.warnIcon} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>Restore from backup</Text>
           <Text style={styles.rowHint}>Replaces current data with a backup file</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#9BAEA1" />
+        <Ionicons name="chevron-forward" size={18} color={c.placeholder} />
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  label: { color: "#526E5D", fontSize: 11, letterSpacing: 1.2, fontWeight: "700", marginTop: 24, marginBottom: 8 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 8 },
-  rowIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  rowTitle: { color: "#1B2A22", fontSize: 15, fontWeight: "600" },
-  rowHint: { color: "#6E8577", fontSize: 12, marginTop: 2 },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    label: { color: c.textLabel, fontSize: 11, letterSpacing: 1.2, fontWeight: "700", marginTop: 24, marginBottom: 8 },
+    row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 8 },
+    rowIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    rowTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
+    rowHint: { color: c.textMuted, fontSize: 12, marginTop: 2 },
+  });

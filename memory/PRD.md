@@ -74,6 +74,21 @@ User settings choices captured for later phases: Income remaining-mode = user-se
 - P3 Home screen widget — remaining budget (needs native build).
 
 ## Next Tasks
-- Phase 2: Income tracking + settings-based remaining mode, then Savings goals (tied to leftover).
-- Consider extracting the Overview screen out of index.tsx (currently ~700+ lines).
+- Phase 3 candidates: Multiple wallets, Yearly overview, Quick-add presets, Home-screen widget (native build).
+- Consider extracting Overview subcomponents from index.tsx (now ~860 lines).
 - Migrate deprecated RN-web shadow* props to boxShadow (non-blocking warning).
+
+## Update (June 2026) — Phase 2 Enhancements (tested — testing_agent iteration_2 all pass)
+- **Theme system**: new `src/budget/theme.ts` (LIGHT/DARK `Palette`, `ThemeContext`, `useTheme`). `_layout.tsx` now hosts `ThemeContext.Provider`, persists mode under storage key `mp-theme`. All budget components + `index.tsx` converted from static `StyleSheet.create` to `makeStyles(c)` factories (theme-aware). Brand greens/hero stay constant across modes.
+- **Dark mode**: manual toggle in Budget → Appearance (`dark-mode-switch`).
+- **Income tracking**: new `Income` type + `income[]` in storage. `IncomeModal.tsx` (add/list/delete this month's income). Overview `income-card` shows monthly income + opens modal.
+- **Remaining mode (user-selectable)**: `remainingMode` = `budget` | `cashflow`, segmented control in Budget (`mode-budget`/`mode-cashflow`). cashflow → remaining = monthIncome − spent (hero "CASH LEFT THIS MONTH"); budget → effectiveBudget − spent.
+- **Savings goals**: new `Goal` type + `goals[]`. New `goals` tab (4-tab bar now). `GoalsPanel.tsx` + `GoalEditor.tsx`. Allocation is DERIVED & automatic: `savingsPool` = sum of positive leftover budget for each COMPLETED past month; goals fill in array order (each goal.saved = min(target, remaining pool)). `unallocatedPool` shown as waiting for a new goal.
+- **Onboarding**: `Onboarding.tsx` 3-step first-run (welcome → budget → currency). Gated by `mp-onboarded` flag (existing users with data are auto-marked onboarded).
+- **Backup**: `BackupData` + export/import now include income, goals, remainingMode.
+
+## Backlog (remaining, prioritized)
+- P2 Multiple accounts/wallets — Cash/Card/Bank balances.
+- P2 Yearly overview — 12-month view, best-saving months, averages.
+- P2 Quick-add presets — one-tap re-log common expenses.
+- P3 Home screen widget — remaining budget (needs native build).

@@ -2,41 +2,39 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { CATEGORY_COLORS, CATEGORY_ICONS, Category } from "./shared";
+import { CATEGORY_COLORS, GOAL_ICONS, Goal, getCurrencySymbol } from "./shared";
 import { Palette, useTheme } from "./theme";
 
-export default function CategoryEditor({
+export default function GoalEditor({
   visible,
   initial,
-  existingNames,
   onClose,
   onSave,
 }: {
   visible: boolean;
-  initial: Category | null;
-  existingNames: string[];
+  initial: Goal | null;
   onClose: () => void;
-  onSave: (category: Category) => void;
+  onSave: (goal: Omit<Goal, "id">, id?: string) => void;
 }) {
   const { c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState<Category["icon"]>(CATEGORY_ICONS[0]);
+  const [target, setTarget] = useState("");
+  const [icon, setIcon] = useState<Goal["icon"]>(GOAL_ICONS[0]);
   const [color, setColor] = useState(CATEGORY_COLORS[0]);
 
   useEffect(() => {
     if (visible) {
       setName(initial?.name ?? "");
-      setIcon(initial?.icon ?? CATEGORY_ICONS[0]);
+      setTarget(initial ? String(initial.target) : "");
+      setIcon(initial?.icon ?? GOAL_ICONS[0]);
       setColor(initial?.color ?? CATEGORY_COLORS[0]);
     }
   }, [visible, initial]);
 
   const trimmed = name.trim();
-  const duplicate = existingNames.some(
-    (n) => n.toLowerCase() === trimmed.toLowerCase() && n !== initial?.name,
-  );
-  const valid = trimmed.length > 0 && !duplicate;
+  const targetNum = Number(target) || 0;
+  const valid = trimmed.length > 0 && targetNum > 0;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -44,8 +42,8 @@ export default function CategoryEditor({
         <View style={styles.sheet}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
-              <Text style={styles.title}>{initial ? "Edit category" : "New category"}</Text>
-              <Pressable testID="close-category-editor" onPress={onClose} style={styles.xButton}>
+              <Text style={styles.title}>{initial ? "Edit goal" : "New savings goal"}</Text>
+              <Pressable testID="close-goal-editor" onPress={onClose} style={styles.xButton}>
                 <Ionicons name="close" size={22} color={c.textLabel} />
               </Pressable>
             </View>
@@ -54,27 +52,40 @@ export default function CategoryEditor({
               <View style={[styles.previewIcon, { backgroundColor: color }]}>
                 <Ionicons name={icon} size={24} color="#FFFFFF" />
               </View>
-              <Text style={styles.previewName}>{trimmed || "Category name"}</Text>
+              <Text style={styles.previewName}>{trimmed || "Goal name"}</Text>
             </View>
 
             <Text style={styles.label}>NAME</Text>
             <TextInput
-              testID="category-name-input"
+              testID="goal-name-input"
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Groceries"
+              placeholder="e.g. Trip to Goa"
               placeholderTextColor={c.placeholder}
               style={styles.input}
               autoFocus={!initial}
             />
-            {duplicate && <Text style={styles.error}>A category with this name already exists.</Text>}
+
+            <Text style={styles.label}>TARGET AMOUNT</Text>
+            <View style={styles.moneyInput}>
+              <Text style={styles.currency}>{getCurrencySymbol()}</Text>
+              <TextInput
+                testID="goal-target-input"
+                value={target}
+                onChangeText={setTarget}
+                placeholder="500"
+                placeholderTextColor={c.placeholder}
+                keyboardType="decimal-pad"
+                style={styles.moneyText}
+              />
+            </View>
 
             <Text style={styles.label}>ICON</Text>
             <View style={styles.grid}>
-              {CATEGORY_ICONS.map((ic) => (
+              {GOAL_ICONS.map((ic) => (
                 <Pressable
                   key={ic}
-                  testID={`icon-${ic}`}
+                  testID={`goal-icon-${ic}`}
                   onPress={() => setIcon(ic)}
                   style={[styles.iconCell, icon === ic && styles.iconCellSelected]}
                 >
@@ -88,7 +99,7 @@ export default function CategoryEditor({
               {CATEGORY_COLORS.map((cl) => (
                 <Pressable
                   key={cl}
-                  testID={`color-${cl}`}
+                  testID={`goal-color-${cl}`}
                   onPress={() => setColor(cl)}
                   style={[styles.colorCell, { backgroundColor: cl }, color === cl && styles.colorCellSelected]}
                 >
@@ -98,11 +109,11 @@ export default function CategoryEditor({
             </View>
 
             <Pressable
-              testID="save-category-button"
-              onPress={() => valid && onSave({ name: trimmed, icon, color })}
+              testID="save-goal-button"
+              onPress={() => valid && onSave({ name: trimmed, target: targetNum, icon, color }, initial?.id)}
               style={[styles.primaryButton, !valid && { opacity: 0.5 }]}
             >
-              <Text style={styles.primaryText}>{initial ? "Save changes" : "Add category"}</Text>
+              <Text style={styles.primaryText}>{initial ? "Save changes" : "Add goal"}</Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -123,7 +134,9 @@ const makeStyles = (c: Palette) =>
     previewName: { color: c.text, fontSize: 17, fontWeight: "700" },
     label: { color: c.textLabel, fontSize: 11, letterSpacing: 1.2, fontWeight: "700", marginTop: 18, marginBottom: 8 },
     input: { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 14, height: 52, paddingHorizontal: 15, color: c.text, fontSize: 16 },
-    error: { color: c.dangerText, fontSize: 12, marginTop: 6 },
+    moneyInput: { flexDirection: "row", alignItems: "center", backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, height: 58, paddingHorizontal: 16 },
+    currency: { color: c.primary, fontSize: 20, fontWeight: "700" },
+    moneyText: { flex: 1, color: c.text, fontSize: 26, fontWeight: "700", paddingLeft: 8 },
     grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
     iconCell: { width: 48, height: 48, borderRadius: 14, borderColor: c.border, borderWidth: 1, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
     iconCellSelected: { borderColor: c.borderSelected, backgroundColor: c.surfaceTint, borderWidth: 2 },

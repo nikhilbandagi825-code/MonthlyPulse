@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 
 import { Category, Draft, Expense, PAYMENTS, getCurrencySymbol } from "./shared";
+import { Palette, useTheme } from "./theme";
 
 export default function ExpenseModal({
   visible,
@@ -21,6 +22,8 @@ export default function ExpenseModal({
   onSave: (e: Draft, repeatMonthly: boolean) => void;
   onDelete: (id: string) => void;
 }) {
+  const { c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(categories[0]?.name ?? "");
   const [note, setNote] = useState("");
@@ -59,7 +62,7 @@ export default function ExpenseModal({
                 <Text style={styles.muted}>Keep your month in view.</Text>
               </View>
               <Pressable testID="close-expense-modal" onPress={onClose} style={styles.xButton}>
-                <Ionicons name="close" size={22} color="#526E5D" />
+                <Ionicons name="close" size={22} color={c.textLabel} />
               </Pressable>
             </View>
 
@@ -72,7 +75,7 @@ export default function ExpenseModal({
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0.00"
-                placeholderTextColor="#9BAEA1"
+                placeholderTextColor={c.placeholder}
                 keyboardType="decimal-pad"
                 style={styles.moneyText}
               />
@@ -94,9 +97,9 @@ export default function ExpenseModal({
 
             <Text style={styles.inputLabel}>DATE</Text>
             <Pressable testID="expense-date-button" onPress={() => setShowPicker((s) => !s)} style={styles.dateButton}>
-              <Ionicons name="calendar-outline" size={20} color="#2D6A4F" />
+              <Ionicons name="calendar-outline" size={20} color={c.primary} />
               <Text style={styles.dateText}>{format(date, "EEEE, MMM d, yyyy")}</Text>
-              <Ionicons name={showPicker ? "chevron-up" : "chevron-down"} size={18} color="#9BAEA1" />
+              <Ionicons name={showPicker ? "chevron-up" : "chevron-down"} size={18} color={c.placeholder} />
             </Pressable>
             {showPicker && (
               <View style={Platform.OS === "ios" ? styles.iosPicker : undefined}>
@@ -107,7 +110,7 @@ export default function ExpenseModal({
                   display={Platform.OS === "ios" ? "inline" : "default"}
                   maximumDate={new Date()}
                   onChange={onDateChange}
-                  accentColor="#2D6A4F"
+                  accentColor={c.primary}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable testID="date-done-button" onPress={() => setShowPicker(false)} style={styles.dateDone}>
@@ -123,7 +126,7 @@ export default function ExpenseModal({
               value={note}
               onChangeText={setNote}
               placeholder="What was it for?"
-              placeholderTextColor="#9BAEA1"
+              placeholderTextColor={c.placeholder}
               style={styles.textInput}
             />
 
@@ -144,7 +147,7 @@ export default function ExpenseModal({
             {!editing && (
               <View style={styles.repeatRow}>
                 <View style={styles.repeatIcon}>
-                  <Ionicons name="repeat-outline" size={20} color="#2D6A4F" />
+                  <Ionicons name="repeat-outline" size={20} color={c.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.repeatTitle}>Repeat monthly</Text>
@@ -154,7 +157,7 @@ export default function ExpenseModal({
                   testID="repeat-switch"
                   value={repeat}
                   onValueChange={setRepeat}
-                  trackColor={{ false: "#D8E6DC", true: "#52B788" }}
+                  trackColor={{ false: c.border, true: c.accent }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -172,7 +175,7 @@ export default function ExpenseModal({
 
             {editing && (
               <Pressable testID="delete-expense-button" onPress={() => onDelete(editing.id)} style={styles.deleteLink}>
-                <Ionicons name="trash-outline" size={18} color="#D90429" />
+                <Ionicons name="trash-outline" size={18} color={c.danger} />
                 <Text style={styles.deleteLinkText}>Delete expense</Text>
               </Pressable>
             )}
@@ -183,34 +186,35 @@ export default function ExpenseModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#17332666" },
-  sheet: { maxHeight: "92%", backgroundColor: "#F9FCF9", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
-  sheetHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 22 },
-  sheetTitle: { color: "#1B2A22", fontSize: 25, fontWeight: "700", marginBottom: 5 },
-  muted: { color: "#6E8577", fontSize: 13 },
-  xButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF4EE", alignItems: "center", justifyContent: "center" },
-  inputLabel: { color: "#526E5D", fontSize: 11, letterSpacing: 1.2, fontWeight: "700", marginTop: 14, marginBottom: 8 },
-  moneyInput: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 16, height: 60, paddingHorizontal: 17 },
-  currency: { color: "#2D6A4F", fontSize: 22, fontWeight: "700" },
-  moneyText: { flex: 1, color: "#1B2A22", fontSize: 29, fontWeight: "700", paddingLeft: 8 },
-  textInput: { backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 14, height: 50, paddingHorizontal: 15, color: "#1B2A22", fontSize: 15 },
-  dateButton: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 14, height: 52, paddingHorizontal: 15 },
-  dateText: { flex: 1, color: "#1B2A22", fontSize: 15, fontWeight: "600" },
-  iosPicker: { backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 16, marginTop: 10, padding: 8 },
-  dateDone: { alignSelf: "flex-end", paddingHorizontal: 18, paddingVertical: 8 },
-  dateDoneText: { color: "#2D6A4F", fontWeight: "700", fontSize: 15 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 3 },
-  chip: { paddingHorizontal: 14, height: 38, borderRadius: 19, borderColor: "#D8E6DC", borderWidth: 1, justifyContent: "center", backgroundColor: "#FFFFFF" },
-  chipSelected: { backgroundColor: "#EAF4EE", borderColor: "#52B788" },
-  chipText: { color: "#526E5D", fontSize: 13, fontWeight: "600" },
-  chipTextSelected: { color: "#2D6A4F" },
-  repeatRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 20 },
-  repeatIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: "#EAF4EE", alignItems: "center", justifyContent: "center" },
-  repeatTitle: { color: "#1B2A22", fontSize: 15, fontWeight: "600" },
-  repeatHint: { color: "#6E8577", fontSize: 12, marginTop: 2 },
-  primaryButton: { height: 54, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#2D6A4F", marginTop: 24 },
-  primaryText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  deleteLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16, paddingVertical: 6 },
-  deleteLinkText: { color: "#D90429", fontSize: 15, fontWeight: "600" },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: c.overlay },
+    sheet: { maxHeight: "92%", backgroundColor: c.bgAlt, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+    sheetHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 22 },
+    sheetTitle: { color: c.text, fontSize: 25, fontWeight: "700", marginBottom: 5 },
+    muted: { color: c.textMuted, fontSize: 13 },
+    xButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.surfaceTint, alignItems: "center", justifyContent: "center" },
+    inputLabel: { color: c.textLabel, fontSize: 11, letterSpacing: 1.2, fontWeight: "700", marginTop: 14, marginBottom: 8 },
+    moneyInput: { flexDirection: "row", alignItems: "center", backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, height: 60, paddingHorizontal: 17 },
+    currency: { color: c.primary, fontSize: 22, fontWeight: "700" },
+    moneyText: { flex: 1, color: c.text, fontSize: 29, fontWeight: "700", paddingLeft: 8 },
+    textInput: { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 14, height: 50, paddingHorizontal: 15, color: c.text, fontSize: 15 },
+    dateButton: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 14, height: 52, paddingHorizontal: 15 },
+    dateText: { flex: 1, color: c.text, fontSize: 15, fontWeight: "600" },
+    iosPicker: { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, marginTop: 10, padding: 8 },
+    dateDone: { alignSelf: "flex-end", paddingHorizontal: 18, paddingVertical: 8 },
+    dateDoneText: { color: c.primary, fontWeight: "700", fontSize: 15 },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 3 },
+    chip: { paddingHorizontal: 14, height: 38, borderRadius: 19, borderColor: c.border, borderWidth: 1, justifyContent: "center", backgroundColor: c.surface },
+    chipSelected: { backgroundColor: c.surfaceTint, borderColor: c.borderSelected },
+    chipText: { color: c.textLabel, fontSize: 13, fontWeight: "600" },
+    chipTextSelected: { color: c.primary },
+    repeatRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 20 },
+    repeatIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: c.surfaceTint, alignItems: "center", justifyContent: "center" },
+    repeatTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
+    repeatHint: { color: c.textMuted, fontSize: 12, marginTop: 2 },
+    primaryButton: { height: 54, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: c.primary, marginTop: 24 },
+    primaryText: { color: c.dark ? "#0E140D" : "#FFFFFF", fontSize: 16, fontWeight: "700" },
+    deleteLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16, paddingVertical: 6 },
+    deleteLinkText: { color: c.danger, fontSize: 15, fontWeight: "600" },
+  });

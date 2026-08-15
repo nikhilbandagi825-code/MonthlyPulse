@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { isSameMonth, parseISO, startOfWeek, subDays } from "date-fns";
 
 import { Expense, money } from "./shared";
+import { Palette, useTheme } from "./theme";
 
 export default function InsightsCard({
   expenses,
@@ -11,6 +13,9 @@ export default function InsightsCard({
   expenses: Expense[];
   effectiveBudget: number;
 }) {
+  const { c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
+
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const lastWeekStart = subDays(weekStart, 7);
@@ -95,17 +100,17 @@ export default function InsightsCard({
     <View testID="insights-card" style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconWrap}>
-          <Ionicons name="sparkles-outline" size={18} color="#2D6A4F" />
+          <Ionicons name="sparkles-outline" size={18} color={c.primary} />
         </View>
         <Text style={styles.title}>Your week at a glance</Text>
       </View>
       <View style={styles.row}>
-        <Ionicons name="calendar-outline" size={15} color="#52B788" style={styles.rowIcon} />
+        <Ionicons name="calendar-outline" size={15} color={c.accent} style={styles.rowIcon} />
         <Text testID="insight-week" style={styles.line}>{weekLine}</Text>
       </View>
       {top && (
         <View style={styles.row}>
-          <Ionicons name="pie-chart-outline" size={15} color="#52B788" style={styles.rowIcon} />
+          <Ionicons name="pie-chart-outline" size={15} color={c.accent} style={styles.rowIcon} />
           <Text testID="insight-top" style={styles.line}>
             Most of it went to {top[0]} ({money(top[1])}).
           </Text>
@@ -116,7 +121,7 @@ export default function InsightsCard({
           <Ionicons
             name={paceDiff >= 0 ? "leaf-outline" : "speedometer-outline"}
             size={15}
-            color={paceDiff >= 0 ? "#52B788" : "#F4A261"}
+            color={paceDiff >= 0 ? c.accent : c.warnIcon}
             style={styles.rowIcon}
           />
           <Text testID="insight-pace" style={styles.line}>{paceLine}</Text>
@@ -124,7 +129,7 @@ export default function InsightsCard({
       )}
       {weekendLine && (
         <View style={styles.row}>
-          <Ionicons name="cafe-outline" size={15} color="#52B788" style={styles.rowIcon} />
+          <Ionicons name="cafe-outline" size={15} color={c.accent} style={styles.rowIcon} />
           <Text testID="insight-weekend" style={styles.line}>{weekendLine}</Text>
         </View>
       )}
@@ -132,12 +137,13 @@ export default function InsightsCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: { marginTop: 16, backgroundColor: "#FFFFFF", borderColor: "#D8E6DC", borderWidth: 1, borderRadius: 20, padding: 18 },
-  header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  iconWrap: { width: 34, height: 34, borderRadius: 12, backgroundColor: "#EAF4EE", alignItems: "center", justifyContent: "center" },
-  title: { color: "#1B2A22", fontSize: 16, fontWeight: "700" },
-  row: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },
-  rowIcon: { marginTop: 2 },
-  line: { flex: 1, color: "#526E5D", fontSize: 13, lineHeight: 19 },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    card: { marginTop: 16, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 20, padding: 18 },
+    header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+    iconWrap: { width: 34, height: 34, borderRadius: 12, backgroundColor: c.surfaceTint, alignItems: "center", justifyContent: "center" },
+    title: { color: c.text, fontSize: 16, fontWeight: "700" },
+    row: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },
+    rowIcon: { marginTop: 2 },
+    line: { flex: 1, color: c.textLabel, fontSize: 13, lineHeight: 19 },
+  });

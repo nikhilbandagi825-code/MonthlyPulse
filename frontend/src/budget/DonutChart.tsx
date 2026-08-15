@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
+
+import { Palette, useTheme } from "./theme";
 
 export type DonutSegment = { label: string; value: number; color: string };
 
@@ -16,6 +19,9 @@ export default function DonutChart({
   size?: number;
   strokeWidth?: number;
 }) {
+  const { c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
+
   const total = segments.reduce((s, x) => s + x.value, 0);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -42,7 +48,7 @@ export default function DonutChart({
     <View testID="donut-chart" style={styles.wrap}>
       <Svg width={size} height={size}>
         <G rotation={-90} origin={`${cx}, ${cy}`}>
-          <Circle cx={cx} cy={cy} r={radius} stroke="#F0F5F1" strokeWidth={strokeWidth} fill="none" />
+          <Circle cx={cx} cy={cy} r={radius} stroke={c.surface2} strokeWidth={strokeWidth} fill="none" />
           {arcs.map((a) => (
             <Circle
               key={a.key}
@@ -67,9 +73,10 @@ export default function DonutChart({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { alignItems: "center", justifyContent: "center" },
-  center: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  centerValue: { color: "#1B2A22", fontSize: 22, fontWeight: "700" },
-  centerLabel: { color: "#6E8577", fontSize: 12, fontWeight: "600", marginTop: 2 },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    wrap: { alignItems: "center", justifyContent: "center" },
+    center: { position: "absolute", alignItems: "center", justifyContent: "center" },
+    centerValue: { color: c.text, fontSize: 22, fontWeight: "700" },
+    centerLabel: { color: c.textMuted, fontSize: 12, fontWeight: "600", marginTop: 2 },
+  });

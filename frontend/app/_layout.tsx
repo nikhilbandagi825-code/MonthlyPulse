@@ -1,10 +1,13 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LogBox } from "react-native";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { storage } from "@/src/utils/storage";
+import { DARK, LIGHT, ThemeContext } from "@/src/budget/theme";
 
+const THEME_KEY = "mp-theme";
 
 // Disable logbox errors etc so that users can see the app
 // and agent works as expected.
@@ -18,6 +21,26 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useIconFonts();
+  const [mode, setModeState] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    (async () => {
+      const saved = await storage.getItem<"light" | "dark">(THEME_KEY, "light");
+      if (saved === "dark" || saved === "light") setModeState(saved);
+    })();
+  }, []);
+
+  const setMode = useCallback((m: "light" | "dark") => {
+    setModeState(m);
+    storage.setItem(THEME_KEY, m);
+  }, []);
+  const toggle = useCallback(() => {
+    setModeState((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      storage.setItem(THEME_KEY, next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (loaded || error) {
@@ -29,5 +52,11 @@ export default function RootLayout() {
   // the app — icons will tofu, but the app still boots.
   if (!loaded && !error) return null;
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  const c = mode === "dark" ? DARK : LIGHT;
+
+  return (
+    <ThemeContext.Provider value={{ c, mode, toggle, setMode }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }} />
+    </ThemeContext.Provider>
+  );
 }

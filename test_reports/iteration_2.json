@@ -1,0 +1,30 @@
+{
+  "summary": "Phase 2 frontend testing on Expo web preview at mobile viewport (390x844). All requested flows work end-to-end: onboarding (steps 0/1/2 render, budget input & INR currency selection persist to Overview showing ₹2000.00), income modal (add ₹5000 income → income-row visible, income-total updates to ₹5000.00, close works), remaining-mode toggle (cashflow=₹5000, budget=₹2000 flip correctly), dark-mode-switch toggles theme and persists across tab navigation, goals CRUD (savings-pool ₹0.00 as expected with no completed months, add goal 'Trip' target 1000 renders goal card with progress bar), 4-tab bar navigation works, FAB add-expense-button only on Overview, ExpenseModal opens, save-budget-button + export-csv/json + import-json buttons present and non-crashing, currency chips + INR symbol propagate correctly. No red-screen or runtime errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Shadow styles (shadow*)", "issue": "react-native-web deprecation warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted for cards using shadowColor/shadowOpacity/shadowRadius (e.g., heroCard, fab, toast in app/index.tsx). Non-breaking, but should migrate to shadow shorthand or boxShadow-friendly styles."},
+      {"component": "Animated pointerEvents prop", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' — from the toast Animated.View in /app/frontend/app/index.tsx around line 763. Move pointerEvents to the style object."},
+      {"component": "Animated useNativeDriver on web", "issue": "'useNativeDriver is not supported... Falling back to JS-based animation.' Expected on web preview; consider Platform.OS check or setting useNativeDriver: false on web to silence."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: migrate shadow* style props to boxShadow / update Animated.View toast to move pointerEvents into style to clear RN-web deprecation warnings.",
+    "No functional fixes required for Phase 2 scope — all requested features working."
+  ],
+  "critical_code_review_comments": [
+    "app/index.tsx is 866 lines and mixes state, effects, memoized derivations, callbacks, and a large StyleSheet. Consider splitting into hooks (useBudgetState) and subcomponents (OverviewScreen, HeroCard) for maintainability.",
+    "Multiple useMemo dependencies include the local 'now' variable which is recreated every render but eslint-disable-next-line comments suppress the warning — acceptable but fragile if refactored."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only requested)", "frontend": "100% (8/8 flows verified)"},
+  "seed_data_creation": "None; used localStorage.clear() to trigger onboarding on a fresh browser context.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App storage key 'serene-budget'; onboarding flag 'mp-onboarded'; theme 'mp-theme'. Clear localStorage to re-trigger onboarding. Savings pool is 0 until a prior completed month has under-budget expenses — do not treat 0 pool as a bug. INR symbol ₹ verified propagating from onboarding selection to hero + income + goals. Dark mode toggle persists via storage.setItem('mp-theme','dark'|'light').",
+  "rca_of_issue": ""
+}

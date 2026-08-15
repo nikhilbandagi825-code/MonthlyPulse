@@ -20,6 +20,23 @@ export type RecurringRule = {
 };
 export type MonthBar = { key: string; label: string; total: number; isCurrent: boolean };
 
+export type Income = {
+  id: string;
+  amount: number;
+  source: string;
+  date: string;
+};
+
+export type Goal = {
+  id: string;
+  name: string;
+  target: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+};
+
+export type RemainingMode = "budget" | "cashflow";
+
 export const STORAGE_KEY = "serene-budget";
 export const PAYMENTS = ["Card", "Cash", "Transfer"];
 
@@ -76,7 +93,16 @@ export type BackupData = {
   recurring: RecurringRule[];
   categories: Category[];
   currency: Currency;
+  income: Income[];
+  goals: Goal[];
+  remainingMode: RemainingMode;
 };
+
+export const GOAL_ICONS: (keyof typeof Ionicons.glyphMap)[] = [
+  "airplane-outline", "car-outline", "home-outline", "gift-outline",
+  "school-outline", "heart-outline", "phone-portrait-outline", "cash-outline",
+  "boat-outline", "camera-outline", "bicycle-outline", "diamond-outline",
+];
 
 export const expensesToCSV = (expenses: Expense[]): string => {
   const header = "Date,Category,Note,Amount,Payment";
