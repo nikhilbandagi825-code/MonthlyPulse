@@ -1,0 +1,69 @@
+{
+  "app_name": "SereneBudget",
+  "app_type": "mobile_web_app",
+  "design_context": "mobile_web_app",
+  "archetype": "ORGANIC & EARTHY (Trust, Growth, Calm)",
+  "description": "An efficient and proactive budgeting web app that tracks daily expenses, shows remaining monthly amount and daily safe-to-spend limit, interactive category spending charts, recent expenses list, and local device persistence with a calm light financial dashboard.",
+  "typography": {
+    "headings": {
+      "family": "Outfit, sans-serif",
+      "weights": ["500", "600", "700"],
+      "classes": "font-sans tracking-tight"
+    },
+    "body": {
+      "family": "Plus Jakarta Sans, sans-serif",
+      "weights": ["400", "500"],
+      "classes": "font-sans"
+    }
+  },
+  "colors": {
+    "primary": "#2D6A4F",
+    "primary_hover": "#1B4332",
+    "accent": "#52B788",
+    "background": "#F4F7F4",
+    "surface": "#FFFFFF",
+    "surface_subtle": "#EAF4EE",
+    "text_main": "#1B2A22",
+    "text_muted": "#526E5D",
+    "border": "#D8E6DC",
+    "danger": "#D90429",
+    "warning": "#F4A261",
+    "success": "#2D6A4F"
+  },
+  "visual_enhancers": {
+    "border_radius": "rounded-2xl",
+    "shadows": "shadow-[0_10px_30px_rgba(45,106,79,0.06)]",
+    "glassmorphism": "backdrop-blur-xl bg-white/80 border border-[#D8E6DC]/60"
+  },
+  "grids": {
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-2 gap-6"
+  },
+  "layouts": {
+    "mobile_container": "max-w-md mx-auto min-h-screen bg-[#F4F7F4] text-[#1B2A22] shadow-2xl relative overflow-x-hidden pb-24",
+    "header": "sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-[#D8E6DC] px-6 py-4 flex items-center justify-between"
+  },
+  "motion": {
+    "transition": "transition-all duration-200 ease-out",
+    "hover_lift": "hover:-translate-y-0.5 active:translate-y-0"
+  },
+  "accessibility": {
+    "contrast_target": "WCAG AA (4.5:1 minimum for body text)",
+    "focus_states": "focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:ring-offset-2"
+  },
+  "image_urls": [
+    {
+      "category": "nature_calm_background",
+      "url": "https://images.unsplash.com/photo-1536646127964-6f5c2822823d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwyfHxmaW5hbmNlJTIwYnVkZ2V0aW5nJTIwY2FsbSUyMGdyZWVuJTIwbmF0dXJlfGVufDB8fHx8MTc4Njc3NjA1OXww&ixlib=rb-4.1.0&q=85",
+      "description": "Calm forest green mood background"
+    }
+  ],
+  "component_path": "/app/frontend/src/components/",
+  "instructions_to_main_agent": "Build a responsive mobile-first budgeting web app with local storage persistence. Key features: 1) Monthly budget setup & optional category limits; 2) Quick expense entry with amount, category, note, date, payment method; 3) Remaining monthly amount & daily safe-to-spend calculation; 4) Interactive category spending breakdown chart (using recharts); 5) Recent expenses list with search/filter & delete/edit; 6) Calm light aesthetic (#F4F7F4 bg, #2D6A4F forest green primary, #52B788 accent). Ensure all interactive elements include data-testid attributes for testing.",
+  "universal_guidelines": [
+    "Never use pure black or pure white without tinting",
+    "Use generous padding (p-6, p-8)",
+    "Include data-testid attributes on all interactive and key informational elements",
+    "Use sonner for toasts",
+    "Mobile-first design optimized for mobile web app viewing"
+  ]
+}
